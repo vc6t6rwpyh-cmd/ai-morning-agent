@@ -22,7 +22,7 @@ class TelegramDelivery:
                 resp = requests.post(
                     f"{self.base_url}/sendMessage",
                     json={"chat_id": self.chat_id, "text": full,
-                          "parse_mode": "Markdown", "disable_web_page_preview": True},
+                          "parse_mode": "HTML", "disable_web_page_preview": True},
                     timeout=30)
                 if resp.status_code != 200:
                     print(f"Telegram error: {resp.text}")
