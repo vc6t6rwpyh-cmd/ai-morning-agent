@@ -1,6 +1,5 @@
 """
 SEAN'S CBC RADIO NEWS COLLECTOR
-Fetches: CBC Top Stories, World, Business, Technology, Canada
 """
 import feedparser
 import requests
@@ -19,15 +18,18 @@ class NewsCollector:
         {"name": "CBC Business", "url": "https://www.cbc.ca/webfeed/rss/rss-business"},
         {"name": "CBC Technology", "url": "https://www.cbc.ca/webfeed/rss/rss-technology"},
         {"name": "CBC Canada", "url": "https://www.cbc.ca/webfeed/rss/rss-canada"},
-        {"name": "CBC British Columbia", "url": "https://www.cbc.ca/webfeed/rss/rss-canada-britishcolumbia"},
-        {"name": "CBC Toronto", "url": "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"},
-        {"name": "CBC Ottawa", "url": "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"},
     ]
 
     def fetch_rss(self, source: Dict) -> List[Dict]:
         articles = []
         try:
-            feed = feedparser.parse(source["url"])
+            # FIX: Use requests with timeout instead of feedparser direct URL
+            resp = requests.get(source["url"], timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            if resp.status_code != 200:
+                print(f"  {source['name']}: HTTP {resp.status_code}")
+                return articles
+            
+            feed = feedparser.parse(resp.content)
             for entry in feed.entries[:8]:
                 published = self._parse_date(entry)
                 if published and published < self.cutoff_date:
@@ -41,7 +43,7 @@ class NewsCollector:
                     "category": self._categorize(source["name"]),
                 })
         except Exception as e:
-            print(f"  RSS Error {source['name']}: {e}")
+            print(f"  {source['name']}: ERROR - {e}")
         return articles
 
     def _parse_date(self, entry):
@@ -64,9 +66,7 @@ class NewsCollector:
             return "technology"
         if "world" in name:
             return "world"
-        if "top" in name:
-            return "headlines"
-        return "canada"
+        return "headlines"
 
     def collect_all(self):
         all_articles = []
@@ -78,6 +78,6 @@ class NewsCollector:
             all_articles.extend(articles)
             print(f"  {source['name']}: {len(articles)} articles")
         all_articles.sort(key=lambda x: x['published'], reverse=True)
-        print(f"\nTOTAL ARTICLES: {len(all_articles)}")
+        print(f"\nTOTAL: {len(all_articles)}")
         print("=" * 50)
         return all_articles
