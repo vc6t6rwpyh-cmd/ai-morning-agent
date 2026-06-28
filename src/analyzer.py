@@ -47,15 +47,31 @@ RULES:
     def analyze(self, articles: List[Dict]) -> str:
         input_text = self._format_articles(articles)
         print("Sending to Groq for AI analysis...")
-        response = self.client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
-            messages=[
-                {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": f"Create today's AI BRIEF Podcast briefing:\n\n{input_text}"}
-            ],
-            temperature=0.5,
-            max_tokens=2500
-        )
+        
+        # FIX: Updated model name for Groq (old one deprecated)
+        try:
+            response = self.client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": self.SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Create today's AI BRIEF Podcast briefing:\n\n{input_text}"}
+                ],
+                temperature=0.5,
+                max_tokens=2500
+            )
+        except:
+            # Fallback to 8B model if 70B fails
+            print("70B model failed, trying 8B model...")
+            response = self.client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": self.SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Create today's AI BRIEF Podcast briefing:\n\n{input_text}"}
+                ],
+                temperature=0.5,
+                max_tokens=2500
+            )
+        
         briefing = response.choices[0].message.content
         print("Analysis complete!")
         return briefing
