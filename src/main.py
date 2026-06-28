@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-AI Morning Intelligence Agent - Main Orchestrator
-Uses FREE Groq API for analysis. Zero cost to operate.
+SEAN'S AI BRIEF PODCAST AGENT - Main
 """
-
 import os
 import sys
 import logging
@@ -27,34 +25,40 @@ logging.basicConfig(
     handlers=[logging.FileHandler(log_file), logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
+
 def run_agent(delivery_method="telegram"):
     start = datetime.now()
     logger.info("=" * 60)
-    logger.info("AI AGENT STARTING (FREE MODE)")
+    logger.info("SEAN'S AI BRIEF PODCAST AGENT - STARTING")
     logger.info("=" * 60)
     try:
-        logger.info("[STAGE 1] Collecting news...")
+        logger.info("[STAGE 1] Collecting CBC news...")
         articles = NewsCollector().collect_all()
         if not articles:
-            logger.warning("No articles. Exiting.")
+            logger.warning("No articles found. Exiting.")
             return
         logger.info(f"Collected {len(articles)} articles")
-
-        logger.info("[STAGE 2] AI analysis (FREE Groq API)...")
+        logger.info("[STAGE 2] AI analysis...")
         briefing = AIAnalyzer().analyze(articles)
-
-        logger.info(f"[STAGE 3] Delivering via {delivery_method}...")
-        success = deliver(briefing, method=delivery_method)
-
-        elapsed = (datetime.now() - start).total_seconds()
-        if success:
-            logger.info(f"\u2705 SUCCESS! Delivered in {elapsed:.1f}s")
+        if delivery_method == "test":
+            logger.info("[STAGE 3] TEST MODE:")
+            print("\n" + "=" * 60)
+            print(briefing[:2000])
+            print("\n... [truncated]")
+            print("=" * 60)
         else:
-            logger.error("\u274c Delivery failed")
+            logger.info(f"[STAGE 3] Delivering via {delivery_method}...")
+            success = deliver(briefing, method=delivery_method)
+            elapsed = (datetime.now() - start).total_seconds()
+            if success:
+                logger.info(f"SUCCESS! Delivered in {elapsed:.1f}s")
+            else:
+                logger.error("Delivery failed")
     except Exception as e:
         logger.error(f"Agent failed: {e}", exc_info=True)
     logger.info("=" * 60)
 
+
 if __name__ == "__main__":
-    method = sys.argv[1] if len(sys.argv) > 1 else "telegram"
+    method = sys.argv[1] if len(sys.argv) > 1 else "test"
     run_agent(delivery_method=method)

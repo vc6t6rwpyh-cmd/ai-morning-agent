@@ -1,89 +1,84 @@
 """
-AI Analysis Engine - FREE version using Groq API
-Uses Llama 3.1 70B via Groq's generous free tier
+SEAN'S AI BRIEF PODCAST ANALYZER
 """
-
-from dotenv import load_dotenv; load_dotenv(); import os
+import os
 from groq import Groq
 from typing import List, Dict
 from datetime import datetime
+
 
 class AIAnalyzer:
     def __init__(self):
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-    SYSTEM_PROMPT = """You are a senior business intelligence analyst preparing a morning briefing for a management consultant.
+    SYSTEM_PROMPT = """You are the co-host of "AI BRIEF Podcast," delivering a professional daily news briefing for Dr. Sean Watts.
 
-Your task: Analyze the provided news articles and create a structured, professional briefing that:
+Create the briefing in THIS EXACT FORMAT:
 
-1. IDENTIFIES key trends and patterns across multiple sources
-2. HIGHLIGHTS stories with strategic business implications
-3. CONNECTS dots between seemingly unrelated developments
-4. PROVIDES context on why each story matters for business decision-making
-5. SEPARATES Vietnam-specific news from global developments
+📻 AI BRIEF PODCAST - DAILY NEWS DIGEST
+For: Dr. Sean Watts
+Date: [today's date]
 
-Tone: Professional yet accessible. Write as if briefing a smart executive who values clarity over jargon.
+=== HEADLINE STORIES ===
+Top 3-4 biggest stories with context on WHY they matter
 
-Structure the output with these exact sections:
-- EXECUTIVE SUMMARY (3-4 bullet points of the most important developments)
-- VIETNAM SPOTLIGHT (2-3 key stories affecting Vietnam's business/tech landscape)
-- GLOBAL AI LANDSCAPE (major AI developments and their business implications)
-- TECHNOLOGY & BUSINESS (significant tech/business news with analysis)
-- ECONOMIC INDICATORS (market moves, policy changes, macro trends)
-- WHAT TO WATCH (emerging stories or trends that may develop further)
+=== BUSINESS & ECONOMY ===
+Market moves, deals, corporate news
 
-Rules:
-- Be specific, not vague. Name companies, people, and numbers when available.
-- Explain WHY something matters, not just WHAT happened.
-- Cross-reference related stories to show pattern recognition.
-- Keep total length to approximately 800-1000 words.
-- Use bullet points for readability.
-- Include source attribution for key claims."""
+=== WORLD NEWS ===
+International developments
+
+=== TECHNOLOGY & AI ===
+Tech breakthroughs, AI developments
+
+=== CANADA FOCUS ===
+Canadian-specific news
+
+=== WHAT TO WATCH ===
+Emerging trends
+
+RULES:
+- Be specific: name companies, people, dollar amounts
+- Explain WHY it matters, not just WHAT happened
+- Connect related stories
+- Professional podcast tone
+- 800-1200 words"""
 
     def analyze(self, articles: List[Dict]) -> str:
-        """Generate briefing from collected articles using FREE Groq API"""
         input_text = self._format_articles(articles)
-        print("Sending to Groq (FREE) for analysis...")
-
+        print("Sending to Groq for AI analysis...")
         response = self.client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-70b-versatile",
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": f"Here are today's news articles. Create the morning briefing:\n\n{input_text}"}
+                {"role": "user", "content": f"Create today's AI BRIEF Podcast briefing:\n\n{input_text}"}
             ],
             temperature=0.5,
-            max_tokens=2000
+            max_tokens=2500
         )
-
         briefing = response.choices[0].message.content
-        print("Analysis complete! (Used FREE Groq API)")
+        print("Analysis complete!")
         return briefing
 
     def _format_articles(self, articles: List[Dict]) -> str:
-        lines = ["NEWS ARTICLES FOR ANALYSIS:", "=" * 50, ""]
+        lines = [f"DAILY INTELLIGENCE - {datetime.now().strftime('%Y-%m-%d')}", "=" * 50]
         by_category = {}
         for a in articles:
-            cat = a["category"]
-            if cat not in by_category:
-                by_category[cat] = []
-            by_category[cat].append(a)
-        for category, items in by_category.items():
-            lines.append(f"\n--- {category.upper()} ({len(items)} articles) ---")
-            for item in items[:10]:
-                lines.append(f"Title: {item['title']}")
+            cat = a.get("category", "general")
+            by_category.setdefault(cat, []).append(a)
+        cat_names = {
+            "headlines": "HEADLINE STORIES",
+            "business": "BUSINESS & ECONOMY",
+            "world": "WORLD NEWS",
+            "technology": "TECHNOLOGY & AI",
+            "canada": "CANADA FOCUS",
+        }
+        for category, items in sorted(by_category.items(), key=lambda x: -len(x[1])):
+            name = cat_names.get(category, category.upper())
+            lines.extend([f"\n--- {name} ({len(items)} articles) ---"])
+            for item in items[:8]:
+                lines.append(f"\nTitle: {item['title']}")
                 lines.append(f"Source: {item['source']}")
-                if item["summary"]:
+                if item.get("summary"):
                     lines.append(f"Summary: {item['summary'][:200]}")
-                lines.append("")
         return "\n".join(lines)
-
-if __name__ == "__main__":
-    from collector import NewsCollector
-    collector = NewsCollector()
-    articles = collector.collect_all()
-    analyzer = AIAnalyzer()
-    briefing = analyzer.analyze(articles)
-    print("\n" + "=" * 60)
-    print("GENERATED BRIEFING (FREE):")
-    print("=" * 60)
-    print(briefing[:500] + "...")

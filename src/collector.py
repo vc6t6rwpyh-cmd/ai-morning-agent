@@ -1,33 +1,27 @@
 """
-News Collector - Fetches news from RSS feeds
-Covers: Vietnam news, Global AI/Tech/Business/Economy
+SEAN'S CBC RADIO NEWS COLLECTOR
+Fetches: CBC Top Stories, World, Business, Technology, Canada
 """
-
 import feedparser
 import requests
+import re
 from datetime import datetime, timedelta
 from typing import List, Dict
 
+
 class NewsCollector:
     def __init__(self):
-        self.articles = []
         self.cutoff_date = datetime.now() - timedelta(hours=48)
 
-    VIETNAM_RSS = [
-        {"name": "VnExpress (Tech)", "url": "https://vnexpress.net/rss/so-hoa.rss"},
-        {"name": "VnExpress (Business)", "url": "https://vnexpress.net/rss/kinh-doanh.rss"},
-        {"name": "Tuoi Tre (Tech)", "url": "https://tuoitre.vn/rss/cong-nghe.rss"},
-        {"name": "Thanh Nien (Tech)", "url": "https://thanhnien.vn/rss/cong-nghe.rss"},
-        {"name": "VietnamNet (Business)", "url": "https://vietnamnet.vn/rss/kinh-doanh.rss"},
-    ]
-
-    GLOBAL_RSS = [
-        {"name": "TechCrunch", "url": "https://techcrunch.com/feed/"},
-        {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
-        {"name": "Wired", "url": "https://www.wired.com/feed/rss"},
-        {"name": "MIT Tech Review", "url": "https://www.technologyreview.com/feed/"},
-        {"name": "Ars Technica", "url": "https://arstechnica.com/feed/"},
-        {"name": "VentureBeat AI", "url": "https://venturebeat.com/category/ai/feed/"},
+    RSS_FEEDS = [
+        {"name": "CBC Top Stories", "url": "https://www.cbc.ca/webfeed/rss/rss-topstories"},
+        {"name": "CBC World News", "url": "https://www.cbc.ca/webfeed/rss/rss-world"},
+        {"name": "CBC Business", "url": "https://www.cbc.ca/webfeed/rss/rss-business"},
+        {"name": "CBC Technology", "url": "https://www.cbc.ca/webfeed/rss/rss-technology"},
+        {"name": "CBC Canada", "url": "https://www.cbc.ca/webfeed/rss/rss-canada"},
+        {"name": "CBC British Columbia", "url": "https://www.cbc.ca/webfeed/rss/rss-canada-britishcolumbia"},
+        {"name": "CBC Toronto", "url": "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"},
+        {"name": "CBC Ottawa", "url": "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"},
     ]
 
     def fetch_rss(self, source: Dict) -> List[Dict]:
@@ -41,35 +35,13 @@ class NewsCollector:
                 articles.append({
                     "title": entry.get("title", ""),
                     "link": entry.get("link", ""),
-                    "summary": entry.get("summary", entry.get("description", ""))[:300],
+                    "summary": self._clean_html(entry.get("summary", entry.get("description", "")))[:300],
                     "source": source["name"],
                     "published": published or datetime.now(),
                     "category": self._categorize(source["name"]),
                 })
         except Exception as e:
-            print(f"RSS Error {source['name']}: {e}")
-        return articles
-
-    def fetch_hacker_news(self) -> List[Dict]:
-        articles = []
-        try:
-            resp = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=10)
-            story_ids = resp.json()[:10]
-            for sid in story_ids:
-                story_resp = requests.get(
-                    f"https://hacker-news.firebaseio.com/v0/item/{sid}.json", timeout=10)
-                story = story_resp.json()
-                if story and story.get("title"):
-                    articles.append({
-                        "title": story["title"],
-                        "link": story.get("url", f"https://news.ycombinator.com/item?id={sid}"),
-                        "summary": "",
-                        "source": "Hacker News",
-                        "published": datetime.now(),
-                        "category": "technology",
-                    })
-        except Exception as e:
-            print(f"HN Error: {e}")
+            print(f"  RSS Error {source['name']}: {e}")
         return articles
 
     def _parse_date(self, entry):
@@ -80,38 +52,32 @@ class NewsCollector:
             pass
         return datetime.now()
 
+    def _clean_html(self, raw: str) -> str:
+        clean = re.sub(r'<[^>]+>', '', raw)
+        return clean.strip()
+
     def _categorize(self, source_name: str) -> str:
-        if any(x in source_name.lower() for x in ["vnexpress", "tuoi tre", "thanh nien", "vietnamnet"]):
-            return "vietnam"
-        if any(x in source_name.lower() for x in ["techcrunch", "verge", "wired", "ars", "hacker"]):
+        name = source_name.lower()
+        if "business" in name:
+            return "business"
+        if "technology" in name:
             return "technology"
-        if "venturebeat" in source_name.lower():
-            return "ai"
-        return "business"
+        if "world" in name:
+            return "world"
+        if "top" in name:
+            return "headlines"
+        return "canada"
 
-    def collect_all(self) -> List[Dict]:
+    def collect_all(self):
         all_articles = []
-        print("Fetching Vietnam news...")
-        for source in self.VIETNAM_RSS:
+        print("=" * 50)
+        print("SEAN'S CBC RADIO NEWS AGENT")
+        print("=" * 50)
+        for source in self.RSS_FEEDS:
             articles = self.fetch_rss(source)
             all_articles.extend(articles)
             print(f"  {source['name']}: {len(articles)} articles")
-        print("Fetching global tech news...")
-        for source in self.GLOBAL_RSS:
-            articles = self.fetch_rss(source)
-            all_articles.extend(articles)
-            print(f"  {source['name']}: {len(articles)} articles")
-        print("Fetching Hacker News...")
-        articles = self.fetch_hacker_news()
-        all_articles.extend(articles)
-        print(f"  Hacker News: {len(articles)} articles")
-        all_articles.sort(key=lambda x: x["published"], reverse=True)
-        print(f"\nTotal articles collected: {len(all_articles)}")
+        all_articles.sort(key=lambda x: x['published'], reverse=True)
+        print(f"\nTOTAL ARTICLES: {len(all_articles)}")
+        print("=" * 50)
         return all_articles
-
-if __name__ == "__main__":
-    collector = NewsCollector()
-    articles = collector.collect_all()
-    print(f"\nFirst 3 articles:")
-    for a in articles[:3]:
-        print(f"- [{a['category']}] {a['title'][:80]}...")
